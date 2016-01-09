@@ -24,8 +24,8 @@ var f MQTT.MessageHandler = func(client *MQTT.Client, msg MQTT.Message) {
 }
 
 type TempReading struct {
-	temp   float64
-	tstamp string //time.Time
+	Temp   float64
+	TStamp string //time.Time
 }
 
 var topic = "w112/sensors/temperature/kitchen"
@@ -35,7 +35,7 @@ func DeserializeJson(bytearr []byte) (TempReading, error){
 	unmarshalError := json.Unmarshal(bytearr, &r)
 	if (unmarshalError != nil) {
 		fmt.Println("Cannot parse ", string(bytearr), "to json:",unmarshalError)
-		return nil, unmarshalError
+		return r, unmarshalError
 	}
 	fmt.Println("Deserialize:", string(bytearr))
 	fmt.Printf("Deserialized: %+v", r)
@@ -81,19 +81,20 @@ func main() {
 		// Create a point and add to batch
 		tags := map[string]string{"temp": "w112-kuchnia"}
 		fields := map[string]interface{}{
-			"temp":   r.temp,
+			"temp":   r.Temp,
 		}
 		//RFC3339
-		t, _ := time.Parse("2015-12-22T01:17:39Z", r.tstamp)
+		t, _ := time.Parse("2015-12-22T01:17:39Z", r.TStamp)
 		pt,err := client.NewPoint("w112_temp", tags, fields, t)
 		if(err != nil){
-			fmt.Println("Cannot create time series point", tags, fields, r.tstamp)
+			fmt.Println("Cannot create time series point", tags, fields, r.TStamp)
 		}else{
 			bp.AddPoint(pt)
 			// Write the batch
 			dbClient.Write(bp)
 		}
 	}); token.Wait() && token.Error() != nil {
+		fmt.Println("MQTT subscription error while subscribing to topic", topic)
 		fmt.Println(token.Error())
 		os.Exit(1)
 	}
@@ -109,16 +110,19 @@ func main() {
 		message, err := stdin.ReadString('\n')
 		print(message)
 		if err == io.EOF {
+			fmt.Println("User input EOF. Exiting...")
+			//unsubscribe from topic
+			if unsubToken := c.Unsubscribe(topic); unsubToken.Wait() && unsubToken.Error() != nil {
+				fmt.Println(unsubToken.Error())
+				os.Exit(1)
+			}
+			c.Disconnect(250)
 			os.Exit(0)
 		}
 		//		client.Publish(*topic, byte(*qos), *retained, message)
 	}
 
-	//unsubscribe from /go-mqtt/sample
-	if token := c.Unsubscribe(topic); token.Wait() && token.Error() != nil {
-		fmt.Println(token.Error())
-		os.Exit(1)
-	}
 
-	c.Disconnect(250)
+
+
 }
