@@ -52,7 +52,7 @@ func main() {
 		Username: username,
 		Password: password,
 	})
-
+	fmt.Println("initiated influx db client")
 	// Create a new point batch
 	bp, _ := client.NewBatchPoints(client.BatchPointsConfig{
 		Database:  MyDB,
@@ -61,12 +61,14 @@ func main() {
 
 	//create a ClientOptions struct setting the broker address, clientid, turn
 	//off trace output and set the default message handler
-	opts := MQTT.NewClientOptions().AddBroker("tcp://192.168.1.107:1883")
+	opts := MQTT.NewClientOptions().AddBroker("tcp://192.168.1.108:1883")
 	opts.SetClientID("go-simple")
 	opts.SetDefaultPublishHandler(f)
-
+	
 	//create and start a client using the above ClientOptions
 	c := MQTT.NewClient(opts)
+	fmt.Println("started MQTT client")
+
 	if token := c.Connect(); token.Wait() && token.Error() != nil {
 		panic(token.Error())
 	}
