@@ -108,6 +108,7 @@ func main() {
 	//    token := c.Publish("w112/sensors/temperature/kitchen", 0, false, text)
 	//    token.Wait()
 	//  }
+	fmt.Println("Input EOF to exit")
 	for {
 		message, err := stdin.ReadString('\n')
 		print(message)
