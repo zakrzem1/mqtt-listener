@@ -17,21 +17,22 @@ const (
 	username = "influkser"
 	password = "cukierLukierGancPomada"
 )
-//define a funct  ion for the default message handler
+//define a function for the default message handler
 var f MQTT.MessageHandler = func(client *MQTT.Client, msg MQTT.Message) {
 	fmt.Printf("TOPIC: %s\n", msg.Topic())
 	fmt.Printf("MSG: %s\n", msg.Payload())
 }
 
-type TempReading struct {
+type TempHumidReading struct {
 	Temp   float64
-	TStamp string //time.Time
+	Hum float64 `json:",omitempty"`
+	TStamp string //time.Time, 2016-01-16T10:32:01Z
 }
 
 var topic = "w112/sensors/temperature/kitchen"
 
-func DeserializeJson(bytearr []byte) (TempReading, error){
-	var r TempReading
+func DeserializeJson(bytearr []byte) (TempHumidReading, error){
+	var r TempHumidReading
 	unmarshalError := json.Unmarshal(bytearr, &r)
 	if (unmarshalError != nil) {
 		fmt.Println("Cannot parse ", string(bytearr), "to json:",unmarshalError)
@@ -78,12 +79,17 @@ func main() {
 
 	if token := c.Subscribe(topic, 0, func(mqttClient *MQTT.Client, msg MQTT.Message) {
 		fmt.Println("Received: Topic=", msg.Topic())
-		r,err := DeserializeJson(msg.Payload())
+		r,deserializeErr := DeserializeJson(msg.Payload())
+		if(deserializeErr!= nil){
+			fmt.Println("json deserialization issue:", deserializeErr, "topic:", msg.Topic())
+			return
+		}
 
 		// Create a point and add to batch
 		tags := map[string]string{"temp": "w112-kuchnia"}
 		fields := map[string]interface{}{
 			"temp":   r.Temp,
+			"hum": r.Hum,
 		}
 		//RFC3339
 		t, _ := time.Parse("2015-12-22T01:17:39Z", r.TStamp)
