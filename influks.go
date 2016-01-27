@@ -1,14 +1,10 @@
 package main
 import (
 	"fmt"
-//import the Paho Go MQTT library
 	MQTT "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
 	"os"
+	"os/signal"
 	"time"
-	"io"
-	"bufio"
-//	"net/url"
-//	"log"
 	"encoding/json"
 	"github.com/influxdb/influxdb/client/v2"
 )
@@ -17,21 +13,25 @@ const (
 	username = "influkser"
 	password = "cukierLukierGancPomada"
 )
-//define a funct  ion for the default message handler
+//define a function for the default message handler
 var f MQTT.MessageHandler = func(client *MQTT.Client, msg MQTT.Message) {
 	fmt.Printf("TOPIC: %s\n", msg.Topic())
 	fmt.Printf("MSG: %s\n", msg.Payload())
 }
+var dfh MQTT.ConnectionLostHandler = func(client *MQTT.Client , err error) {
+	fmt.Printf("Connection Lost: %s\n", err)
+}
 
-type TempReading struct {
+type TempHumidReading struct {
 	Temp   float64
-	TStamp string //time.Time
+	Hum float64 `json:",omitempty"`
+	TStamp string //time.Time, 2016-01-16T10:32:01Z
 }
 
 var topic = "w112/sensors/temperature/kitchen"
 
-func DeserializeJson(bytearr []byte) (TempReading, error){
-	var r TempReading
+func DeserializeJson(bytearr []byte) (TempHumidReading, error){
+	var r TempHumidReading
 	unmarshalError := json.Unmarshal(bytearr, &r)
 	if (unmarshalError != nil) {
 		fmt.Println("Cannot parse ", string(bytearr), "to json:",unmarshalError)
@@ -42,7 +42,6 @@ func DeserializeJson(bytearr []byte) (TempReading, error){
 	return r, nil
 }
 func main() {
-	stdin := bufio.NewReader(os.Stdin)
 	hostname, _ := os.Hostname()
 	fmt.Println(hostname)
 
@@ -64,13 +63,14 @@ func main() {
 	opts := MQTT.NewClientOptions().AddBroker("tcp://192.168.1.108:1883")
 	opts.SetClientID("go-simple")
 	opts.SetDefaultPublishHandler(f)
-	
+	opts.SetConnectionLostHandler(dfh)
 	//create and start a client using the above ClientOptions
 	c := MQTT.NewClient(opts)
 	fmt.Println("started MQTT client")
 
-	if token := c.Connect(); token.Wait() && token.Error() != nil {
-		panic(token.Error())
+	if connectoken := c.Connect(); connectoken.Wait() && connectoken.Error() != nil {
+		fmt.Println("connect tokken err")
+		panic(connectoken.Error())
 	}
 
 	//subscribe to the topic /go-mqtt/sample and request messages to be delivered
@@ -78,12 +78,17 @@ func main() {
 
 	if token := c.Subscribe(topic, 0, func(mqttClient *MQTT.Client, msg MQTT.Message) {
 		fmt.Println("Received: Topic=", msg.Topic())
-		r,err := DeserializeJson(msg.Payload())
+		r,deserializeErr := DeserializeJson(msg.Payload())
+		if(deserializeErr!= nil){
+			fmt.Println("json deserialization issue:", deserializeErr, "topic:", msg.Topic())
+			return
+		}
 
 		// Create a point and add to batch
 		tags := map[string]string{"temp": "w112-kuchnia"}
 		fields := map[string]interface{}{
 			"temp":   r.Temp,
+			"hum": r.Hum,
 		}
 		//RFC3339
 		t, _ := time.Parse("2015-12-22T01:17:39Z", r.TStamp)
@@ -102,27 +107,27 @@ func main() {
 	}
 
 	//Publish 5 messages to /go-mqtt/sample at qos 1 and wait for the receipt
-	//from the server after sending each message
-	//  for i := 0; i < 5; i++ {
-	//    text := fmt.Sprintf("this is msg #%d!", i)
 	//    token := c.Publish("w112/sensors/temperature/kitchen", 0, false, text)
-	//    token.Wait()
-	//  }
-	fmt.Println("Input EOF to exit")
-	for {
-		message, err := stdin.ReadString('\n')
-		print(message)
-		if err == io.EOF {
-			fmt.Println("User input EOF. Exiting...")
-			//unsubscribe from topic
-			if unsubToken := c.Unsubscribe(topic); unsubToken.Wait() && unsubToken.Error() != nil {
+	
+	fmt.Println("Interrupt to exit (Ctrl+C)")
+	channello := make(chan os.Signal, 1)
+	signal.Notify(channello, os.Interrupt)
+	go func(){
+	    for sig := range channello {
+	        // sig is a ^C, handle it
+	        fmt.Println("exiting aafter interrupt signal", sig)
+	        if unsubToken := c.Unsubscribe(topic); unsubToken.Wait() && unsubToken.Error() != nil {
 				fmt.Println(unsubToken.Error())
 				os.Exit(1)
 			}
 			c.Disconnect(250)
 			os.Exit(0)
 		}
-		//client.Publish(*topic, byte(*qos), *retained, message)
+	}()
+
+	for {
+		time.Sleep(30000 * time.Millisecond)
+		fmt.Print("\xe2\x99\xa5 U+2665 \x26\x65")
 	}
 
 
