@@ -122,7 +122,7 @@ func main() {
 			c.Disconnect(250)
 			os.Exit(0)
 		}
-		//		client.Publish(*topic, byte(*qos), *retained, message)
+		//client.Publish(*topic, byte(*qos), *retained, message)
 	}
 
 
