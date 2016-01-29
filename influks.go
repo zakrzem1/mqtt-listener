@@ -47,7 +47,7 @@ func main() {
 
 	// Make db client
 	dbClient, _ := client.NewHTTPClient(client.HTTPConfig{
-		Addr: "http://localhost:8086",
+		Addr: "http://192.168.1.108:8086",
 		Username: username,
 		Password: password,
 	})
@@ -61,12 +61,13 @@ func main() {
 	//create a ClientOptions struct setting the broker address, clientid, turn
 	//off trace output and set the default message handler
 	opts := MQTT.NewClientOptions().AddBroker("tcp://192.168.1.108:1883")
-	opts.SetClientID("go-simple")
+	opts.SetKeepAlive(0) //500*time.Second
+	opts.SetClientID("go-influks")
 	opts.SetDefaultPublishHandler(f)
 	opts.SetConnectionLostHandler(dfh)
 	//create and start a client using the above ClientOptions
 	c := MQTT.NewClient(opts)
-	fmt.Println("started MQTT client")
+	fmt.Println("started MQTT client with KeepAlive : ", opts.KeepAlive, " AutoReconnect: ", opts.AutoReconnect, " Clean Session:",opts.CleanSession)
 
 	if connectoken := c.Connect(); connectoken.Wait() && connectoken.Error() != nil {
 		fmt.Println("connect tokken err")
@@ -127,7 +128,7 @@ func main() {
 
 	for {
 		time.Sleep(30000 * time.Millisecond)
-		fmt.Print("\xe2\x99\xa5 U+2665 \x26\x65")
+		fmt.Print("\xe2\x99\xa5")
 	}
 
 

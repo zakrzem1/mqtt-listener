@@ -1,11 +1,10 @@
 # mqtt-listener
 connects to mqtt, listens for events and sends them to time series db
+
 # TODO
-* enable humidity sending to influx
-* fix inability to stay connected to mqtt 
-** somehow stops receiving updates
-* enable multiple sensors configuration 
+* enable multiple sensors configuration (B1820 and DHT22 simultainously)
 ** currently only one at a time is supported
+** on different mqtt paths
 
 # Future Enhancements
 * binary mqtt message format instead of json
