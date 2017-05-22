@@ -46,24 +46,6 @@ func DeserializeJson(bytearr []byte) (TempHumidReading, error){
 	fmt.Printf("Deserialized: %+v", r)
 	return r, nil
 }
-func getMeTheObject(r TempHumidReading){
-	if(r.Temp!=nil && r.Hum!=nil){
-		return map[string]interface{}{
-			"temp":   r.Temp,
-			"hum": 	r.Hum,
-		}
-	}
-	if(r.Level!=nil){
-		return map[string]interface{}{
-			"lvl": 	r.Level,
-		}
-	}
-	if(r.PersonCount!=nil){
-		return map[string]interface{}{
-			"personCount": r.PersonCount,
-		}
-	}
-}
 func main() {
 	hostname, _ := os.Hostname()
 	fmt.Println(hostname)
@@ -110,7 +92,12 @@ func main() {
 
 		// Create a point and add to batch
 		tags := map[string]string{"sensors": r.RoomName}
-		fields := getMeTheObject(r)
+		fields := map[string]interface{}{
+			"temp":   r.Temp,
+			"hum": 	r.Hum,
+			"lvl": 	r.Level,
+			"personCount": r.PersonCount,
+		}
 		//RFC3339
 		t, _ := time.Parse("2015-12-22T01:17:39Z", r.TStamp)
 		pt,err := client.NewPoint(r.RoomName, tags, fields, t)
